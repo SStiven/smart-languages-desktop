@@ -23,16 +23,16 @@ class ChatByText:
     def __init__(self):
         pass
 
-    async def execute(self, question_statement: str):
+    async def execute(self, question_statement: str) -> str:
         question_repository = SqlAlchemyQuestionRepository()
         question: SqlAlchemyQuestion = await question_repository.find_by_statement(
             question_statement
         )
         if question is not None:
             print(f"Found exactly in the database!!!!\n")
-            for ans in question.answers:
-                print(ans.statement)
-            return
+            return question.answers[0].statement
+            # for ans in question.answers:
+            #    print(ans.statement)
 
         embedding_client = OpenAIEmbeddingClient()
         embedding_response = embedding_client.build(question_statement)
@@ -48,11 +48,13 @@ class ChatByText:
             similar_questions = await question_repository.find_all_by_embedding_indices(
                 ids=indexes
             )
+            if len(similar_questions) > 0:
+                return similar_questions[0].answers[0].statement
+
             for q in similar_questions:
                 print(f"question: {q.statement}")
                 for a in q.answers:
                     print(f"answer: {a.statement}")
-            return
 
         print("Doesn't found similar questions in faiss index")
         print("Let's spend some money")
