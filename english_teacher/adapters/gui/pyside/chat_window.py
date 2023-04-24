@@ -3,11 +3,12 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QVBoxLayout,
     QWidget,
-    QTextBrowser,
+    QLabel,
     QTextEdit,
     QPushButton,
     QListWidget,
     QHBoxLayout,
+    QScrollArea,
 )
 from PySide6.QtCore import QEvent, Qt
 
@@ -29,12 +30,18 @@ class ChatWindow(QMainWindow):
 
         self.rooms_list = QListWidget()
         self.rooms_list.setMaximumWidth(200)
-        self.chat_area = QTextBrowser()
-        self.chat_area.setOpenExternalLinks(True)
+
+        self.chat_area = QWidget()
+        self.chat_area_layout = QVBoxLayout()
+        self.chat_area.setLayout(self.chat_area_layout)
+
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setWidget(self.chat_area)
 
         hbox = QHBoxLayout()
         hbox.addWidget(self.rooms_list)
-        hbox.addWidget(self.chat_area)
+        hbox.addWidget(self.scroll_area)
         main_layout.addLayout(hbox)
 
         self.message_input = QTextEdit()
@@ -70,24 +77,28 @@ class ChatWindow(QMainWindow):
         await asyncio.sleep(0)
         self.rooms_list.addItems(room_names)
 
-    def build_exchange_html(self, message, response):
-        html = f"""
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-            <div style="text-align: right;"  padding: 5px; border-radius: 7px; word-wrap: break-word;">
-                <span style="background-color: #DCF8C6;">
-                    {message}
-                </span>
-            </div>
-        </div>
-        <div style="display: flex; justify-content: flex-start; margin-bottom: 10px;">
-            <div style="text-align: left;">
-                <span style="background-color: #ECE5DD; padding: 5px; border-radius: 7px; word-wrap: break-word;">
-                    {response}
-                </span>
-            </div>
-        </div>
-        """
-        return html
+    def add_exchange(self, message, response):
+        message_label = QLabel()
+        message_label.setWordWrap(True)
+        message_label.setTextFormat(Qt.RichText)
+        message_label.setStyleSheet(
+            "QLabel { padding: 5px; border-radius: 7px; background-color: #DCF8C6; }"
+        )
+        message_label.setAlignment(Qt.AlignRight)
+        message_label.setText(message)
+        self.chat_area_layout.addWidget(message_label)
+
+        response_label = QLabel()
+        response_label.setWordWrap(True)
+        response_label.setTextFormat(Qt.RichText)
+        response_label.setStyleSheet(
+            "QLabel { padding: 5px; border-radius: 7px; background-color: #ECE5DD; }"
+        )
+        response_label.setAlignment(Qt.AlignLeft)
+        response_label.setText(response)
+        self.chat_area_layout.addWidget(response_label)
+
+        self.scroll_area.ensureWidgetVisible(response_label)
 
     async def send_message(self):
         message = self.message_input.toPlainText().strip()
@@ -96,5 +107,4 @@ class ChatWindow(QMainWindow):
         self.message_input.clear()
         chat_by_text_service = ChatByText()
         response = await chat_by_text_service.execute(message)
-        self.chat_area.insertHtml(self.build_exchange_html(message, response))
-        self.chat_area.ensureCursorVisible()
+        self.add_exchange(message, response)
