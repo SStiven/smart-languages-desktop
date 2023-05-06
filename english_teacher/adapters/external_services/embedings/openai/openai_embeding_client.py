@@ -1,7 +1,7 @@
-import openai
+import os
 import openai
 
-openai.api_key = "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"
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 
 class OpenAIEmbeddingClient:
