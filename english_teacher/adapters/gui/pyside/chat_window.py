@@ -12,6 +12,9 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSplitter,
 )
+from english_teacher.adapters.external_services.speech_to_text.openai.openai_speech_to_text import (
+    OpenAISpeechToTextClient,
+)
 from english_teacher.adapters.external_services.text_to_speech.polly.polly_client import (
     PollyClient,
 )
@@ -22,7 +25,7 @@ from english_teacher.adapters.persistence.filesystem.filesystem_audio_repository
 )
 
 
-from english_teacher.application.chat_by_text import ChatByText
+from english_teacher.application.chat_by_text import ChatService
 
 
 class ChatWindow(QMainWindow):
@@ -81,6 +84,9 @@ class ChatWindow(QMainWindow):
         )
 
         self.audio_player = QAudioPlayer()
+        self.speech_to_text_client = OpenAISpeechToTextClient()
+        self.chat_by_text_service = ChatService()
+        self.filepath = ""
 
         self.message_input.installEventFilter(self)
 
@@ -103,15 +109,20 @@ class ChatWindow(QMainWindow):
         await asyncio.sleep(0)
         self.rooms_list.addItems(room_names)
 
+    def continue_with(self):
+        transcribed_text = self.speech_to_text_client.transcribe(self.filepath)
+        self.message_input.insertPlainText(transcribed_text)
+
     def toggle_recording(self, checked):
         if checked:
             if self.audio_recorder is None:
                 self.audio_recorder = AudioRecorder()
             self.record_button.setText("Stop")
-            self.audio_recorder.record()
-        else:
-            self.audio_recorder.stop()
-            self.record_button.setText("Record")
+            self.filepath = self.audio_recorder.record()
+            return
+
+        self.audio_recorder.stop(self.continue_with)
+        self.record_button.setText("Record")
 
     def add_exchange(self, message, response):
         message_label = QLabel()
@@ -143,8 +154,8 @@ class ChatWindow(QMainWindow):
         if message is None or len(message) == 0:
             return
         self.message_input.clear()
-        chat_by_text_service = ChatByText()
-        response = await chat_by_text_service.execute(message)
+
+        response = await self.chat_by_text_service.execute(message)
         self.add_exchange(message, response)
         text_to_speech_client = PollyClient()
         output_format = "mp3"
@@ -153,4 +164,5 @@ class ChatWindow(QMainWindow):
         )
         audio_repo = FileSystemAudioRepository()
         file_path = audio_repo.add(audio_bytes, output_format)
+
         self.audio_player.play(file_path)

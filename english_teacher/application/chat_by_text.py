@@ -19,7 +19,7 @@ from english_teacher.adapters.external_services.embedings.openai.openai_embeding
 )
 
 
-class ChatByText:
+class ChatService:
     def __init__(self):
         pass
 
